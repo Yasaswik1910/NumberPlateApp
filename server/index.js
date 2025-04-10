@@ -39,6 +39,14 @@ app.post('/upload', upload.single('video'), (req, res) => {
   });
 });
 
+// API: Get history of detected plates
+app.get('/history', (req, res) => {
+  db.all('SELECT * FROM detected_vehicles ORDER BY id DESC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows.map(row => row.plate_number));
+  });
+});
+
 // API: Mark vehicle as theft
 app.post('/mark-theft', (req, res) => {
   const { plate_number } = req.body;

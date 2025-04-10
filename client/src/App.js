@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; // Added useEffect for fetching history
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
@@ -9,23 +9,22 @@ function App() {
   const [result, setResult] = useState(null);
   const [plateInput, setPlateInput] = useState("");
   const [theftPlates, setTheftPlates] = useState([]);
-  const [history, setHistory] = useState([]); // New state for history of plates
-  const [searchQuery, setSearchQuery] = useState(""); // For search input
+  const [history, setHistory] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [darkMode, setDarkMode] = useState(false);
 
-  // Fetch history from the backend when the component mounts
   useEffect(() => {
     const fetchHistory = async () => {
       try {
         const response = await axios.get("http://localhost:5000/history");
-        setHistory(response.data); // Update history with data from the backend
+        setHistory(response.data);
       } catch (err) {
         console.error("Error fetching history:", err.message);
         toast.error("Failed to fetch history.");
       }
     };
-
     fetchHistory();
-  }, []); // Empty dependency array ensures it runs only once after initial mount
+  }, []);
 
   const handleVideoUpload = (e) => {
     setVideo(e.target.files[0]);
@@ -33,11 +32,11 @@ function App() {
 
   const checkForTheftPlates = async (plates) => {
     const theftList = [];
-
     for (const plate of plates) {
       try {
         const response = await axios.get(`http://localhost:5000/check-theft/${plate}`);
         if (response.data.isTheft) {
+          alert()
           toast.error(`🚨 Theft Vehicle Detected: ${plate}`);
           theftList.push(plate);
         }
@@ -45,18 +44,17 @@ function App() {
         console.error(`Error checking plate ${plate}:`, err.message);
       }
     }
-
     setTheftPlates(theftList);
   };
 
   const handleSubmit = async () => {
     if (!video) return;
+
     const formData = new FormData();
     formData.append("video", video);
     setProcessing(true);
     setResult(null);
     setTheftPlates([]);
-    setHistory([]); // Clear history before new upload
 
     try {
       const res = await axios.post("http://localhost:5000/upload", formData, {
@@ -66,10 +64,15 @@ function App() {
           setUploadProgress(percent);
         },
       });
-      setResult(res.data);
-      await checkForTheftPlates(res.data.plates);
+
+      const cleanedPlates = res.data.plates
+        .map(p => p.replace(/\s+/g, '').toUpperCase())
+        .filter(p => p.length >= 8);
+
+      setResult({ plates: cleanedPlates });
+      await checkForTheftPlates(cleanedPlates);
       toast.success("Video processed successfully!");
-      setHistory([...history, ...res.data.plates]); // Add newly detected plates to history
+      setHistory(prev => [...cleanedPlates, ...prev]);
     } catch (err) {
       toast.error("Error processing video");
     } finally {
@@ -91,7 +94,7 @@ function App() {
       if (response.status === 200) {
         toast.success("Theft vehicle recorded successfully.");
         setPlateInput("");
-        setHistory([...history, plateInput.trim()]); // Add to history
+        setHistory(prev => [plateInput.trim(), ...prev]);
       } else {
         toast.error("Failed to record theft vehicle.");
       }
@@ -106,116 +109,148 @@ function App() {
     setHistory(updatedHistory);
   };
 
+  const handleDownload = () => {
+    const csv = ["Plate Number", ...history].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "detected_plates_history.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   const filteredPlates = result?.plates.filter((plate) =>
     plate.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-3xl mx-auto bg-white shadow-xl rounded-2xl p-6">
-        <h1 className="text-2xl font-bold text-center mb-6 text-gray-800">🚘 Automatic Number Plate Detection</h1>
+  const filteredHistory = history.filter((plate) =>
+    plate.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-        <div className="space-y-4">
-          <div className="flex items-center space-x-4">
-            <input type="file" accept="video/*" onChange={handleVideoUpload} className="flex-1 p-2 border rounded" />
+  return (
+    <div className={darkMode ? "dark" : ""}>
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors p-6">
+        <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-6 space-y-6">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">🚘 Automatic Number Plate Detection</h1>
             <button
-              onClick={handleSubmit}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-transform transform hover:scale-105"
-              disabled={processing}
+              onClick={() => setDarkMode(!darkMode)}
+              className="bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition"
             >
-              {processing ? "Processing..." : "Upload & Process"}
+              {darkMode ? "🌞 Light Mode" : "🌙 Dark Mode"}
             </button>
           </div>
 
-          {/* Search Input */}
-          <div className="mt-4">
+          {/* Upload Section */}
+          <div className="space-y-3">
+            <h2 className="font-semibold text-lg">📤 Upload Video</h2>
+            <div className="flex items-center gap-4">
+              <input type="file" accept="video/*" onChange={handleVideoUpload} className="flex-1 p-2 border rounded" />
+              <button
+                onClick={handleSubmit}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+                disabled={processing}
+              >
+                {processing ? "Processing..." : "Upload & Process"}
+              </button>
+            </div>
+
+            {video && (
+              <div>
+                <video controls width="400" className="mt-2 rounded-lg shadow-lg">
+                  <source src={URL.createObjectURL(video)} type={video.type} />
+                </video>
+              </div>
+            )}
+
+            {uploadProgress > 0 && (
+              <div className="mt-2 w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                <div className="bg-blue-600 h-3" style={{ width: `${uploadProgress}%` }}></div>
+              </div>
+            )}
+            <div className="text-sm">Upload Progress: {uploadProgress}%</div>
+          </div>
+
+          {/* Search + Detected Results */}
+          {filteredPlates && filteredPlates.length > 0 && (
+            <div className="space-y-3">
+              <input
+                type="text"
+                placeholder="🔍 Search detected plates"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="p-2 border rounded w-full"
+              />
+
+              <div className="bg-green-100 dark:bg-green-900 border border-green-400 text-green-800 dark:text-green-200 rounded p-4">
+                <h2 className="font-semibold mb-2">Detected Plates:</h2>
+                <ul className="space-y-1">
+                  {filteredPlates.map((p, idx) => (
+                    <li key={idx} className={`text-lg ${theftPlates.includes(p) ? "text-red-600 font-bold" : ""}`}>
+                      {p}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* History Section */}
+          <div>
+            <h2 className="text-lg font-semibold mb-2">📜 History of Detected Plates</h2>
             <input
               type="text"
-              placeholder="Search plates"
+              placeholder="🔍 Search history"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="p-2 border rounded w-full"
+              className="p-2 border rounded w-full mb-2"
             />
-          </div>
 
-          {/* Video Preview Section */}
-          {video && (
-            <div className="mt-4">
-              <h2 className="font-semibold">Video Preview:</h2>
-              <video controls width="300" className="rounded-lg mt-2 shadow-md transition-transform transform hover:scale-105">
-                <source src={URL.createObjectURL(video)} type={video.type} />
-                Your browser does not support the video tag.
-              </video>
-            </div>
-          )}
+            <button
+              onClick={handleDownload}
+              className="mb-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+            >
+              ⬇️ Download History CSV
+            </button>
 
-          {/* Upload Progress Bar */}
-          {uploadProgress > 0 && (
-            <div className="mt-2 w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-              <div
-                className="bg-blue-600 h-4"
-                style={{ width: `${uploadProgress}%` }}
-              ></div>
-            </div>
-          )}
-
-          <div className="text-sm text-gray-700">Upload Progress: {uploadProgress}%</div>
-
-          {processing && (
-            <div className="text-yellow-600 font-semibold mt-2">⏳ Processing video, please wait...</div>
-          )}
-
-          {filteredPlates && filteredPlates.length > 0 && (
-            <div className="bg-green-100 border border-green-400 text-green-800 rounded p-4 mt-4">
-              <h2 className="text-lg font-semibold mb-2">Detected Plates :</h2>
-              <ul className="list-disc list-inside">
-                {filteredPlates.map((p, idx) => (
-                  <li
-                    key={idx}
-                    className={theftPlates.includes(p) ? "text-red-600 font-bold" : ""}
-                  >
-                    {p}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* History Table */}
-          <div className="mt-6">
-            <h2 className="text-lg font-semibold mb-2">🔎 History of Detected Plates</h2>
-            <table className="min-w-full table-auto">
-              <thead>
-                <tr className="bg-gray-200">
-                  <th className="p-2 border">Plate Number</th>
-                  <th className="p-2 border">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.length > 0 ? (
-                  history.map((plate, idx) => (
-                    <tr key={idx} className="border-b hover:bg-gray-50">
-                      <td className="p-2">{plate}</td>
-                      <td className="p-2">
-                        <button
-                          onClick={() => handleRemoveFromHistory(idx)}
-                          className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded transition-transform transform hover:scale-105"
-                        >
-                          Remove
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
+            <div className="max-h-60 overflow-y-auto rounded border">
+              <table className="min-w-full table-auto">
+                <thead className="bg-gray-200 dark:bg-gray-700">
                   <tr>
-                    <td colSpan="2" className="p-2 text-center">No history available</td>
+                    <th className="p-2 border">Plate Number</th>
+                    <th className="p-2 border">Action</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredHistory.length > 0 ? (
+                    filteredHistory.map((plate, idx) => (
+                      <tr key={idx} className="border-b hover:bg-gray-100 dark:hover:bg-gray-600">
+                        <td className="p-2">{plate}</td>
+                        <td className="p-2">
+                          <button
+                            onClick={() => handleRemoveFromHistory(idx)}
+                            className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded"
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="2" className="p-2 text-center">No matching history found</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          <div className="mt-6 border-t pt-4">
+          {/* Theft Vehicle Marking */}
+          <div className="border-t pt-4">
             <h2 className="text-lg font-semibold mb-2">🛑 Mark Theft Vehicle</h2>
             <div className="flex items-center space-x-4">
               <input
@@ -226,7 +261,7 @@ function App() {
               />
               <button
                 onClick={handleTheftEntry}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-transform transform hover:scale-105"
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
               >
                 Submit
               </button>
@@ -239,4 +274,3 @@ function App() {
 }
 
 export default App;
-
