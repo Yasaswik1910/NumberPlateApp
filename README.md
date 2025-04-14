@@ -1,4 +1,4 @@
-## 🚘 Automatic Number Plate Detection and Database Updation using IoT
+## 🚘Drone Based Automatic Number Plate Detection and Database Updation using IoT
 
 This project is a full-stack web application that detects vehicle number plates from uploaded CCTV/recorded videos and stores them in a database. It combines React, Node.js, Python, and SQLite for a seamless solution.
 
