@@ -9,7 +9,7 @@ This project is a full-stack web application that detects vehicle number plates 
 - **Frontend**: React.js + Tailwind CSS (Dark/Light mode toggle)
 - **Backend**: Node.js with Express
 - **Database**: SQLite
-- **Number Plate Detection**: Python (OpenCV + EasyOCR)
+- **Number Plate Detection**: Python (Landing AI)
 
 ---
 
