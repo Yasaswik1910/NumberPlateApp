@@ -119,8 +119,12 @@ This runs on `http://localhost:3000`
 
 ## 👨‍💼 Developed By
 
+## 👨‍💻 Developed By
+
 **Manoj Murari**  
 📧 saimnj357@gmail.com  
 🌐 [GitHub](https://github.com/Manoj-Murari)
 
----
+**Yasaswi**  
+📧 yasaswi1910@gmail.com  
+🌐 [GitHub](https://github.com/Yasaswik1910)
