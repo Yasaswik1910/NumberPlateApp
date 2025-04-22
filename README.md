@@ -117,8 +117,6 @@ This runs on `http://localhost:3000`
 
 ---
 
-## 👨‍💼 Developed By
-
 ## 👨‍💻 Developed By
 
 **Manoj Murari**  
